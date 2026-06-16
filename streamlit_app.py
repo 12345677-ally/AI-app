@@ -30,7 +30,7 @@ def generate_summary(text):
     【講義資料のテキスト】
     {text}
     """
-    # ★ここを gemini-1.5-flash に修正済み
+
     response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
     return response.text
 
@@ -43,7 +43,7 @@ def generate_questions_only(text):
     【講義資料のテキスト】
     {text}
     """
-    # ★ここを gemini-1.5-flash に修正済み
+
     response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
     return response.text
 
@@ -67,7 +67,7 @@ def grade_user_answers(text, questions, ans1, ans2, ans3):
     ・正誤判定（正解、不十分、不正解など）
     ・模範解答と、学生の解答に対する具体的な改善点や解説
     """
-    # ★ここを gemini-1.5-flash に修正済み
+
     response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
     return response.text
 # ---------------------------------------------
