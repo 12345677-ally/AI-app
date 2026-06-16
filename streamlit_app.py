@@ -1,10 +1,12 @@
 import streamlit as st
 from pypdf import PdfReader
 from google import genai
+from supabase import create_client, Client
 
 # APIキーの設定
 if "GEMINI_API_KEY" in st.secrets:
     client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
+    supabase: Client = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 else:
     st.error("APIキーが見つかりません。")
     st.stop()
@@ -97,6 +99,19 @@ if uploaded_file is not None:
         with st.spinner("要約を作成中..."):
             summary = generate_summary(extracted_text)
             st.write(summary)
+            st.markdown("#### 💾 この内容を保存する")
+            category_input = st.text_input("整理用の項目名（例：マクロ経済学 第1回、心理学など）", key="cat_input")
+            
+            if st.button("データベースに保存"):
+                if category_input:
+                    supabase.table("study_notes").insert({
+                        "category": category_input,
+                        "summary": summary,
+                        "questions": st.session_state.questions if st.session_state.questions else "テスト未作成"
+                    }).execute()
+                    st.success(f"「{category_input}」として保存しました！画面下部の復習エリアで確認できます。")
+                else:
+                    st.warning("項目名を入力してください。")
             
         st.divider()
 
@@ -144,3 +159,32 @@ if uploaded_file is not None:
             
     else:
         st.warning("テキストを抽出できませんでした。")
+
+st.block_output = st.divider()
+st.header("🗂️ 保存済みノート（復習エリア）")
+
+try:
+    # Supabaseから保存したデータを全件取得
+    response = supabase.table("study_notes").select("*").execute()
+    saved_data = response.data
+    
+    if saved_data:
+        # 重複のない項目（カテゴリー）のリストを作成
+        categories = list(set([item["category"] for item in saved_data]))
+        
+        # ユーザーが項目を選択するセレクトボックス
+        selected_category = st.selectbox("復習したい項目を選択してください", categories)
+        
+        # 選択された項目に一致するデータだけを表示
+        filtered_data = [item for item in saved_data if item["category"] == selected_category]
+        
+        for note in filtered_data:
+            with st.expander(f"📁 {note['category']}（保存日: {note['created_at'][:10]}）"):
+                st.markdown("### 💡 要約と解説")
+                st.write(note["summary"])
+                st.markdown("### 📝 作成された問題")
+                st.write(note["questions"])
+    else:
+        st.info("まだ保存されたデータがありません。資料を読み込んで保存してみましょう。")
+except Exception as e:
+    st.error(f"データの取得中にエラーが発生しました。テーブル名やRLS設定を確認してください: {e}")
